@@ -18,10 +18,29 @@ if uploaded_file is not None:
     st.write("Preview Data:")
     st.dataframe(df.head())
 
+    # ======================
+    # ✅ FILTER (OPSIONAL)
+    # ======================
+    st.subheader("Filter Data (Opsional)")
+    filter_column = st.selectbox("Pilih kolom untuk filter:", ["None"] + list(df.columns))
+
+    df_filtered = df.copy()
+
+    if filter_column != "None":
+        unique_vals = sorted(df[filter_column].dropna().unique(), key=lambda x: str(x))
+        filter_value = st.selectbox(f"Pilih nilai untuk kolom **{filter_column}**:", unique_vals)
+        df_filtered = df[df[filter_column] == filter_value]
+
+    st.write(f"Jumlah data setelah filter: **{len(df_filtered)} baris**")
+
+    # ======================
+    # LANJUT KE ANALISIS
+    # ======================
+
     # Column selection
-    numeric_cols = df.select_dtypes(include=["float","int"]).columns
+    numeric_cols = df_filtered.select_dtypes(include=["float","int"]).columns
     if len(numeric_cols) == 0:
-        st.error("Tidak ada kolom numerik di file. Pastikan file berisi kolom numeric.")
+        st.error("Tidak ada kolom numerik di data (setelah filter).")
     else:
         selected_column = st.selectbox("Select column to analyze", numeric_cols)
 
@@ -31,7 +50,7 @@ if uploaded_file is not None:
         # Log scale option for X-axis
         log_x = st.checkbox("Use logarithmic X-scale (grade)", value=False)
 
-        data = df[selected_column].dropna()
+        data = df_filtered[selected_column].dropna()
 
         # If log X requested, filter non-positive values
         if log_x:
@@ -40,11 +59,9 @@ if uploaded_file is not None:
                 st.error("Data tidak memiliki nilai > 0. Tidak bisa memakai skala logaritmik pada sumbu X.")
                 st.stop()
             data_for_hist = data_pos
-            # create logarithmic bins
             data_min = data_pos.min()
             data_max = data_pos.max()
             if data_min == data_max:
-                # fallback to linear bins
                 bins_array = bins
             else:
                 bins_array = np.logspace(np.log10(data_min), np.log10(data_max), bins)
@@ -63,11 +80,9 @@ if uploaded_file is not None:
         ax1.set_xlabel(selected_column)
         ax1.set_ylabel("Frequency")
 
-        # CDF Overlay
         cdf = np.cumsum(counts) / np.sum(counts)
         ax2 = ax1.twinx()
-        # plot CDF at right-edge of each bin
-        ax2.plot(bin_edges[1:], cdf * 100, color='blue', marker='o', linewidth=1)
+        ax2.plot(bin_edges[1:], cdf * 100, marker='o', linewidth=1)
         ax2.set_ylabel("Cumulative Frequency (%)")
         ax2.grid(False)
 
@@ -92,5 +107,4 @@ if uploaded_file is not None:
 
         st.pyplot(fig2)
 
-        # Info / Notes
-        st.markdown("**Notes:** Jika memilih skala logaritmik X, semua nilai <= 0 akan diabaikan. Bins dibuat secara logaritmik agar histogram merepresentasikan distribusi pada skala log.")
+        st.markdown("**Notes:** Jika memilih skala logaritmik X, semua nilai ≤ 0 akan diabaikan. Bins dibuat secara logaritmik agar histogram merepresentasikan distribusi pada skala log.")
